@@ -10,7 +10,7 @@ a must have addon for the old client and a server like warmane.
 
 
 
-to put it simple and short you can ping anything with this addon. buffs on you debuffs on you.
+to put it simple and short you can ping anything with this addon. buffs or debuffs on you.
 
 &#x20;your mana and hp percent's. the readiness of your spells and the CDs on them.
 
