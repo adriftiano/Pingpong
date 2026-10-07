@@ -1,75 +1,56 @@
-PingPong v1.8
+# PingPong v1.8
 
+**PingPong** is a powerful communication addon designed for older World of Warcraft clients (such as WotLK 3.3.5a) and servers like Warmane. It bridges the gap between classic gameplay and modern communication by allowing you to instantly ping vital combat information directly into your chat logs. 
 
+Whether you are pushing high-end PUGs, coordinating with your guild, or managing chaotic arena matches, PingPong makes raid awareness ten times easier.
 
-this addon makes your life 10 times easier in pugs and even guild runs or any other combat form in the game.
+---
 
+## Key Features
 
+* **Ping Your Own Status:** Easily report your current Health and Mana percentages.
+* **Track Your Spells:** Ping the readiness of your abilities or display their exact remaining cooldowns.
+* **Monitor Aura Conditions:** Ping both buffs and debuffs currently active on your character.
+* **Targeted Alerting:** Ping dispelable debuffs on yourself to alert your healers.
+* **Inspect Others:** Ping buffs and debuffs active on your targets (for example, spam-pinging Fiery Combustion in Ruby Sanctum so players know to move out).
 
-a must have addon for the old client and a server like warmane.
+---
 
+## Practical Use Cases
 
+### Flexible Chat Outputs
+Ping your stats or statuses into dynamic chat channels, including `/say`, `/yell`, `/raid`, or `/party` based on your immediate needs.
 
-to put it simple and short you can ping anything with this addon. buffs or debuffs on you.
+### Quick Whispers
+Set a dedicated keybind to whisper your target. If you are a caster low on mana, target a Druid, hit your whisper keybind while clicking your mana pool, and let them know you need an Innervate. Alternatively, `/yell` it out and let your Raid Leader sort it out.
 
-&#x20;your mana and hp percent's. the readiness of your spells and the CDs on them.
+### Cooldown Management
+Link your major cooldowns instantly. Use it to alert a Blood Death Knight that your burst macro is ready so they can give you Hysteria, or ping your own Innervate to let your raid know it is currently on cooldown.
 
-&#x20;even if you have a dispelable debuff on you and your healer is sleeping.
+---
 
-&#x20;you can even ping other peoples buffs and debuffs(now you can spam ping the Fiery
+## Integrated Addon Benefits
 
-&#x20;Combustion in RS and the guy still explode on your raid)
+While PingPong works perfectly fine on its own, when **other raid members** also have PingPong installed, the communication gets upgraded:
 
+* **Visual Popups:** Floating indicators appear next to chat bubbles showing the exact spell or item icon.
+* **Timers:** A clear cooldown timer displays beneath the icon for quick processing.
+* **Dispel Highlights:** An intuitive outline appears around the icon indicating the dispelable debuff type (Magic, Curse, Poison, Disease).
 
+---
 
+## Configuration and Customisation
 
+Type **`/pp`** in-game to open the configuration panel. Every feature includes intuitive tooltips to keep things simple.
 
-different use cases:
+### Custom Item and Spell Overrides
+You can override specific spells or items to display exactly how you want them in chat. For example, instead of printing out a long, clunky item name for your engineered gear, you can override your boots to cleanly say: "Nitro Boots on CD".
 
+---
 
+## Disclaimer
+The underlying code for PingPong was written entirely by **Claude AI**, with implementation, feature design, and product direction driven entirely by the author.
 
-pinging HP and mana in different chats:/yell /say /raid...
-
-and a different keybind for whisper your target
-
-(if you want a druid too know your low on mana
-
-you can target them and press you wisp ping key bind on your mana
-
-and if has aware your get your innervate.
-
-or /yell it and let the raidleader sort it)
-
-
-
-Pinging your cd's and off cd spells as fast as it can get
-
-for exp: your burst macro for the BDK to give u hysteria or
-
-you can ping your innervates cd to let people know its on cd.
-
-
-
-
-
-the positives of others having this addon: they get an indicator near their chat bubbles
-
-with the spell/item icon with a timer under it so they can see quickly what your trying to tell them.
-
-and even an outline of the dispelable debuff type.
-
-
-
-you can open the options tab with /pp everything have toolboxes in there so you wont be lost
-
-
-
-you can override an spell or a item to get pinged as a buff or a different spell
-
-for exp(you can override your boot to say nitro boots on cd instead of the entire name of the item.
-
-
-Disclaimer: The code was entirely written by Claude AI. I just acted as a director.
 
 
 
