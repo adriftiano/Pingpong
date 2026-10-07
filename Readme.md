@@ -6,7 +6,7 @@ this addon makes your life 10 times easier in pugs and even guild runs or any ot
 
 
 
-a most have addon for the old client and a server like warmane.
+a must have addon for the old client and a server like warmane.
 
 
 
