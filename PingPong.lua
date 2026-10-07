@@ -283,6 +283,31 @@ local function IconsEnabled()
     return PingPongDB.icons ~= false
 end
 
+-- Why a spell/item can't be used --------------------------------------------
+-- { word under the bubble icon (1 word, red), phrase shown in the ping text }
+local BLOCKS = {
+    dead          = { "Dead",          "you are dead" },
+    stunned       = { "Stunned",       "you are stunned" },
+    silenced      = { "Silenced",      "you are silenced" },
+    pacified      = { "Pacified",      "you are pacified" },
+    feared        = { "Feared",        "you are feared" },
+    asleep        = { "Asleep",        "you are asleep" },
+    disoriented   = { "Disoriented",   "you are disoriented" },
+    incapacitated = { "Incapacitated", "you are incapacitated" },
+    controlled    = { "Controlled",    "you are mind controlled" },
+    banished      = { "Banished",      "you are banished" },
+    frozen        = { "Frozen",        "you are frozen in ice" },
+    mana          = { "Mana",          "not enough mana" },
+    rage          = { "Rage",          "not enough rage" },
+    energy        = { "Energy",        "not enough energy" },
+    focus         = { "Focus",         "not enough focus" },
+    runes         = { "Runes",         "not enough runes" },
+    runic         = { "Runic",         "not enough runic power" },
+    unusable      = { "Unusable",      "can't be used right now" },
+}
+local BLOCK_WORD = {} -- phrase in the ping text -> 1-word label for the bubble
+for _, v in pairs(BLOCKS) do BLOCK_WORD[v[2]] = v[1] end
+
 -- Icons on received pings ----------------------------------------------------
 -- A ping starts with a spell/item link. When one arrives, the icon of that
 -- spell/item is put in front of it, locally, for anyone who has this addon.
@@ -296,6 +321,7 @@ local function IconFromMessage(msg)
     if not (rest:find("^ Is ready to use!!!")
         or rest:find("^ Is on Cooldown %[")
         or rest:find("^ Is not ready %(none left%)")
+        or rest:find("^ Is not ready to use %[")
         or rest:find("^ %(x%d+%) On ")
         or rest:find("^ On ")) then
         return nil
@@ -401,6 +427,8 @@ local auraMeta = {}
 local function BubbleStatus(msg)
     if msg:find(" Is ready to use!!!", 1, true) then return "ready" end
     if msg:find(" Is not ready (none left)", 1, true) then return "none" end
+    local why = msg:match(" Is not ready to use %[(.-)%]")
+    if why then return "blocked", nil, BLOCK_WORD[why] or "Unusable" end
     local t = msg:match(" Is on Cooldown %[(.-)%]")
     if t then
         local sec = ParseSeconds(t)
@@ -419,6 +447,10 @@ local function SetBubbleLabel(m)
     elseif m.status == "none" then
         l:SetText("None left")
         l:SetTextColor(1, 0, 0)
+        l:Show()
+    elseif m.status == "blocked" then
+        l:SetText(m.word or "Unusable")
+        l:SetTextColor(1, 0, 0) -- same red as the cooldown text
         l:Show()
     elseif m.status == "cd" and m.expires then
         local left = m.expires - GetTime()
@@ -490,7 +522,7 @@ local function TryBubble(job)
                 m.label:SetFont(STANDARD_TEXT_FONT, Sizes.get("bubbleText"), BubbleFontFlags())
                 m.label:ClearAllPoints()
                 m.label:SetPoint("TOP", m.tex, "BOTTOM", 0, -2)
-                m.status, m.expires = job.status, job.expires
+                m.status, m.expires, m.word = job.status, job.expires, job.word
                 SetBubbleLabel(m)
                 return true
             end
@@ -532,7 +564,7 @@ bubbleEvents:SetScript("OnEvent", function(self, event, msg)
     if not IconsEnabled() then return end
     local icon = IconFromMessage(msg)
     if icon then
-        local status, secs = BubbleStatus(msg)
+        local status, secs, word = BubbleStatus(msg)
         local dtype
         if not status and msg:find(" On ", 1, true) then
             -- Aura ping: "[Spell] On Name 2:21m Left"
@@ -545,7 +577,8 @@ bubbleEvents:SetScript("OnEvent", function(self, event, msg)
             secs = left and ParseSeconds(left)
         end
         bubbleJobs[#bubbleJobs + 1] = { plain = PlainText(msg), loose = Loose(msg), icon = icon,
-            status = status, dtype = dtype, expires = secs and (GetTime() + secs) or nil, tries = 0 }
+            status = status, word = word, dtype = dtype,
+            expires = secs and (GetTime() + secs) or nil, tries = 0 }
     end
 end)
 
@@ -774,6 +807,8 @@ end
 -- Hover an action button and press the spell keybind:
 --   Ready:       [Starfall] Is ready to use!!!
 --   On cooldown: [Starfall] Is on Cooldown [2:21m]
+--   Can't use it:[Starfall] Is not ready to use [you are stunned]
+--                (also: dead, silenced, not enough mana/rage/energy/runes, ...)
 --   Items/reagent spells also get the amount:  (x20 left)
 --   Out of an item:  [Fish Feast] Is not ready (none left)
 --
@@ -896,6 +931,124 @@ local function Resolve(slot)
     return "action", nil, false
 end
 
+-- Can you actually use it right now? --------------------------------------------
+-- Returns a key of BLOCKS (dead, stunned, mana, ...) or nil when nothing stops you.
+
+local POWER_KEY = { [0] = "mana", [1] = "rage", [2] = "focus", [3] = "energy",
+                    [5] = "runes", [6] = "runic" }
+
+local function SpellPower(id)
+    local pt = id and select(6, GetSpellInfo(id))
+    return pt
+end
+
+-- Which resource is missing: the spell's own cost type, else your current one
+local function PowerKey(id)
+    local key = POWER_KEY[SpellPower(id) or -1] or POWER_KEY[UnitPowerType("player")]
+    return key or "unusable"
+end
+
+-- Text of everything on you that could stop you, as one lowercase string.
+-- (3.3.5 has no "loss of control" API, so the debuff tooltips are read.)
+local function DebuffText()
+    local parts = {}
+    for i = 1, 40 do
+        if not UnitDebuff("player", i) then break end
+        scan:ClearLines()
+        scan:SetOwner(UIParent, "ANCHOR_NONE")
+        scan:SetUnitDebuff("player", i)
+        for l = 1, scan:NumLines() do
+            local fs = _G["PingPongScanTooltipTextLeft" .. l]
+            local t = fs and fs:GetText()
+            if t then parts[#parts + 1] = t end
+        end
+    end
+    return table.concat(parts, " "):lower()
+end
+
+-- { text found in a debuff tooltip, BLOCKS key, what it stops }
+--   "all" = everything, "spell" = magic spells only, "physical" = non-magic only
+local CC_RULES = {
+    { "stunned",          "stunned",       "all" },
+    { "fleeing in terror", "feared",       "all" },
+    { "feared",           "feared",        "all" },
+    { "horrified",        "feared",        "all" },
+    { "asleep",           "asleep",        "all" },
+    { "disoriented",      "disoriented",   "all" },
+    { "confused",         "disoriented",   "all" },
+    { "incapacitated",    "incapacitated", "all" },
+    { "transformed",      "incapacitated", "all" },
+    { "mind control",     "controlled",    "all" },
+    { "charmed",          "controlled",    "all" },
+    { "under the control", "controlled",   "all" },
+    { "banished",         "banished",      "all" },
+    { "silenced",         "silenced",      "spell" },
+    { "pacified",         "pacified",      "physical" },
+}
+-- Abilities that work while you're crowd controlled
+local CC_EXEMPT = { [59752] = true, [7744] = true } -- Every Man for Himself, Will of the Forsaken
+
+local function IsEquippedTrinket(id)
+    for _, s in ipairs({ 13, 14 }) do
+        local link = GetInventoryItemLink("player", s)
+        if link and tonumber(link:match("item:(%d+)")) == id then return true end
+    end
+    return false
+end
+
+local function HasBuffId(spellId)
+    for i = 1, 40 do
+        local name, _, _, _, _, _, _, _, _, _, id = UnitBuff("player", i)
+        if not name then return false end
+        if id == spellId then return true end
+    end
+    return false
+end
+
+local function CCBlock(kind, id)
+    if kind == "spell" and id and CC_EXEMPT[id] then return nil end
+    if kind == "item" and id and IsEquippedTrinket(id) then return nil end -- PvP trinkets break CC
+
+    local isSpell = (kind == "spell" and id) and true or false
+    local magic = isSpell and SpellPower(id) == 0
+    local text = DebuffText()
+    for _, r in ipairs(CC_RULES) do
+        if text:find(r[1], 1, true) then
+            local scope = r[3]
+            if scope == "all"
+                or (scope == "spell" and magic)
+                or (scope == "physical" and isSpell and not magic) then
+                return r[2]
+            end
+        end
+    end
+    if HasBuffId(45438) then return "frozen" end -- Ice Block
+    return nil
+end
+
+local function GetBlock(slot, kind, id, isOverride)
+    if UnitIsDeadOrGhost("player") then return "dead" end
+
+    local cc = CCBlock(kind, id)
+    if cc then return cc end
+
+    local usable, noPower
+    if isOverride or type(slot) == "table" then
+        if kind == "spell" and id then
+            usable, noPower = IsUsableSpell(id)
+        elseif kind == "item" and id then
+            usable, noPower = IsUsableItem(id)
+        else
+            return nil
+        end
+    else
+        usable, noPower = IsUsableAction(slot)
+    end
+    if noPower then return PowerKey(kind == "spell" and id or nil) end
+    if not usable then return "unusable" end
+    return nil
+end
+
 local lastPing = 0
 
 local function PingSlot(slot, whisper)
@@ -965,7 +1118,13 @@ local function PingSlot(slot, whisper)
     elseif remaining > 0 then
         msg = name .. " Is on Cooldown [" .. FormatTime(remaining) .. "]"
     else
-        msg = name .. " Is ready to use!!!"
+        -- Off cooldown, but is something else stopping you right now?
+        local block = GetBlock(slot, kind, id, isOverride)
+        if block then
+            msg = name .. " Is not ready to use [" .. BLOCKS[block][2] .. "]"
+        else
+            msg = name .. " Is ready to use!!!"
+        end
     end
     if count and count > 0 then
         msg = msg .. " (x" .. count .. " left)"
@@ -1806,7 +1965,7 @@ MakeSizeBox("bubbleIcon", -138, "Bubble icon size:",
     "Shows on the next bubble.")
 
 MakeSizeBox("bubbleText", -164, "Bubble text size:",
-    "Size of the green Ready / red cooldown text under the bubble icon.\n\n|cffffd100Default: "
+    "Size of the green Ready / red cooldown / red reason (Stunned, Mana...) text under the bubble icon.\n\n|cffffd100Default: "
     .. Sizes.default.bubbleText .. "|r  (" .. Sizes.limits.bubbleText[1] .. " to "
     .. Sizes.limits.bubbleText[2] .. ")",
     "Shows on the next bubble.")

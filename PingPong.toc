@@ -2,7 +2,7 @@
 ## Title: PingPong
 ## Notes: Shift-click and double-tap Shift pings for auras, health/power, difficulty, spells and items.
 ## Author: You
-## Version: 1.8
+## Version: 1.5
 ## SavedVariables: PingPongDB
 
 PingPong.lua
